@@ -52,11 +52,11 @@ var (
 	flagDisableLua     = flag.Bool("nolua", false, "disable collecting lua metrics")
 	flagLuaMetricsFile = flag.String("lua-metrics-file", "metrics-lua.json", "The JSON file with the lua metric definitions.")
 
-	flagGatewayURL    = flag.String("gateway-url", "http://fritz.box:49000", "The URL of the FRITZ!Box")
-	flagGatewayLuaURL = flag.String("gateway-luaurl", "http://fritz.box", "The URL of the FRITZ!Box UI")
-	flagUsername      = flag.String("username", "", "The user for the FRITZ!Box UPnP service")
-	flagPassword      = flag.String("password", "", "The password for the FRITZ!Box UPnP service")
-    flagGatewayVerifyTLS = flag.Bool("verifyTls", false, "Verify the tls connection when connecting to the FRITZ!Box")
+	flagGatewayURL       = flag.String("gateway-url", "http://fritz.box:49000", "The URL of the FRITZ!Box")
+	flagGatewayLuaURL    = flag.String("gateway-luaurl", "http://fritz.box", "The URL of the FRITZ!Box UI")
+	flagUsername         = flag.String("username", "", "The user for the FRITZ!Box UPnP service")
+	flagPassword         = flag.String("password", "", "The password for the FRITZ!Box UPnP service")
+	flagGatewayVerifyTLS = flag.Bool("verifyTls", false, "Verify the tls connection when connecting to the FRITZ!Box")
 )
 
 var (
@@ -180,11 +180,11 @@ var luaCache map[string]*luaCacheEntry
 
 // FritzboxCollector main struct
 type FritzboxCollector struct {
-	URL      string
-	Gateway  string
-	Username string
-	Password string
-    VerifyTls bool
+	URL       string
+	Gateway   string
+	Username  string
+	Password  string
+	VerifyTls bool
 
 	// support for lua collector
 	LuaSession   *lua.LuaSession
@@ -803,13 +803,13 @@ func main() {
 	}
 
 	collector := &FritzboxCollector{
-		URL:      *flagGatewayURL,
-		Gateway:  u.Hostname(),
-		Username: *flagUsername,
-		Password: *flagPassword,
-        VerifyTls: *flagGatewayVerifyTLS,
+		URL:       *flagGatewayURL,
+		Gateway:   u.Hostname(),
+		Username:  *flagUsername,
+		Password:  *flagPassword,
+		VerifyTls: *flagGatewayVerifyTLS,
 
-        LuaSession:   luaSession,
+		LuaSession:   luaSession,
 		LabelRenames: luaLabelRenames,
 	}
 
@@ -847,8 +847,14 @@ func main() {
 		prometheus.MustRegister(collectLuaResultsLoaded)
 	}
 
+	healthChecks := createHealthChecks(*flagGatewayURL)
+
 	http.Handle("/metrics", promhttp.Handler())
 	fmt.Printf("metrics available at http://%s/metrics\n", *flagAddr)
+	http.HandleFunc("/ready", healthChecks.ReadyEndpoint)
+	fmt.Printf("readyness check available at http://%s/ready\n", *flagAddr)
+	http.HandleFunc("/live", healthChecks.LiveEndpoint)
+	fmt.Printf("liveness check available at http://%s/live\n", *flagAddr)
 
 	log.Fatal(http.ListenAndServe(*flagAddr, nil))
 }
