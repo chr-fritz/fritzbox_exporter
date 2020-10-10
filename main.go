@@ -56,6 +56,7 @@ var (
 	flagGatewayLuaURL = flag.String("gateway-luaurl", "http://fritz.box", "The URL of the FRITZ!Box UI")
 	flagUsername      = flag.String("username", "", "The user for the FRITZ!Box UPnP service")
 	flagPassword      = flag.String("password", "", "The password for the FRITZ!Box UPnP service")
+    flagGatewayVerifyTLS = flag.Bool("verifyTls", false, "Verify the tls connection when connecting to the FRITZ!Box")
 )
 
 var (
@@ -183,6 +184,7 @@ type FritzboxCollector struct {
 	Gateway  string
 	Username string
 	Password string
+    VerifyTls bool
 
 	// support for lua collector
 	LuaSession   *lua.LuaSession
@@ -218,7 +220,7 @@ func (w *testResponseWriter) String() string {
 // LoadServices tries to load the service information. Retries until success.
 func (fc *FritzboxCollector) LoadServices() {
 	for {
-		root, err := upnp.LoadServices(fc.URL, fc.Username, fc.Password)
+		root, err := upnp.LoadServices(fc.URL, fc.Username, fc.Password, fc.VerifyTls)
 		if err != nil {
 			fmt.Printf("cannot load services: %s\n", err)
 
@@ -535,7 +537,7 @@ func (fc *FritzboxCollector) reportLuaMetric(ch chan<- prometheus.Metric, lm *Lu
 }
 
 func test() {
-	root, err := upnp.LoadServices(*flagGatewayURL, *flagUsername, *flagPassword)
+	root, err := upnp.LoadServices(*flagGatewayURL, *flagUsername, *flagPassword, *flagGatewayVerifyTLS)
 	if err != nil {
 		panic(err)
 	}
@@ -805,8 +807,9 @@ func main() {
 		Gateway:  u.Hostname(),
 		Username: *flagUsername,
 		Password: *flagPassword,
+        VerifyTls: *flagGatewayVerifyTLS,
 
-		LuaSession:   luaSession,
+        LuaSession:   luaSession,
 		LabelRenames: luaLabelRenames,
 	}
 
