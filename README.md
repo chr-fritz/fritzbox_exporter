@@ -28,6 +28,7 @@ Other changes:
 ## Table of Contents
 - [Building](#building)
 - [Running](#running)
+  - [Running with docker](#running-with-docker)
 - [Exported metrics](#exported-metrics)
 - [Output of `-test`](#output-of--test)
 - [Customizing metrics](#customizing-metrics)
@@ -40,6 +41,13 @@ git clone https://github.com/chr-fritz/fritzbox_exporter.git
 cd fritzbox_exporter
 go mod download
 go build
+```
+
+Alternatively there is a [`Dockerfile`](Dockerfile) to build a docker
+image.
+
+```shell script
+docker build -t fritzbox-exporter .
 ```
 
 ## Running
@@ -83,6 +91,23 @@ The password (needed for metrics from TR-064 API) can be passed over environment
 ```shell script
 read -rs PASSWORD && export PASSWORD && ./fritzbox_exporter -username <user> -test; unset PASSWORD
 ```
+
+### Running with docker
+
+The fritzbox-exporter will be built by the Docker Hub Infrastructure
+which can be used with:
+
+```shell script
+docker run -p 8080:8080 chrfritz/fritzbox-exporter
+```
+
+It supports all commandline arguments like the original one:
+
+```shell script
+docker run chrfritz/fritzbox-exporter -h
+```
+
+See also <https://hub.docker.com/r/chrfritz/fritzbox-exporter>.
 
 ## Exported metrics
 
