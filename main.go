@@ -21,8 +21,8 @@ import (
 	"github.com/namsral/flag"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -222,13 +222,13 @@ func (fc *FritzboxCollector) LoadServices() {
 	for {
 		root, err := upnp.LoadServices(fc.URL, fc.Username, fc.Password, fc.VerifyTls)
 		if err != nil {
-			fmt.Printf("cannot load services: %s\n", err)
+			logrus.Errorf("cannot load services: %s", err)
 
 			time.Sleep(serviceLoadRetryTime)
 			continue
 		}
 
-		fmt.Printf("services loaded\n")
+		logrus.Info("services loaded")
 
 		fc.Lock()
 		fc.Root = root
@@ -248,7 +248,7 @@ func (fc *FritzboxCollector) reportMetric(ch chan<- prometheus.Metric, m *Metric
 
 	val, ok := result[m.Result]
 	if !ok {
-		fmt.Printf("%s.%s has no result %s", m.Service, m.Action, m.Result)
+		logrus.Debugf("%s.%s has no result %s", m.Service, m.Action, m.Result)
 		collectErrors.Inc()
 		return
 	}
@@ -270,7 +270,7 @@ func (fc *FritzboxCollector) reportMetric(ch chan<- prometheus.Metric, m *Metric
 			floatval = 0
 		}
 	default:
-		fmt.Println("unknown type", val)
+		logrus.Warnf("unknown type: %s", val)
 		collectErrors.Inc()
 		return
 	}
@@ -282,7 +282,7 @@ func (fc *FritzboxCollector) reportMetric(ch chan<- prometheus.Metric, m *Metric
 		} else {
 			lval, ok := result[l]
 			if !ok {
-				fmt.Printf("%s.%s has no resul for label %s", m.Service, m.Action, l)
+				logrus.Warnf("%s.%s has no resul for label %s", m.Service, m.Action, l)
 				lval = ""
 			}
 
@@ -383,7 +383,7 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 				provRes, err := fc.getActionResult(m, aa.ProviderAction, nil)
 
 				if err != nil {
-					fmt.Printf("Error getting provider action %s result for %s.%s: %s\n", aa.ProviderAction, m.Service, m.Action, err.Error())
+					logrus.Warnf("Error getting provider action %s result for %s.%s: %s", aa.ProviderAction, m.Service, m.Action, err.Error())
 					collectErrors.Inc()
 					continue
 				}
@@ -391,7 +391,7 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 				var ok bool
 				value, ok = provRes[aa.Value] // Value contains the result name for provider actions
 				if !ok {
-					fmt.Printf("provider action %s for %s.%s has no result", m.Service, m.Action, aa.Value)
+					logrus.Warnf("provider action %s for %s.%s has no result", m.Service, m.Action, aa.Value)
 					collectErrors.Inc()
 					continue
 				}
@@ -428,7 +428,7 @@ func (fc *FritzboxCollector) Collect(ch chan<- prometheus.Metric) {
 		result, err := fc.getActionResult(m, m.Action, actArg)
 
 		if err != nil {
-			fmt.Println(err.Error())
+			logrus.Warnf("can not collect metrics: %s", err)
 			collectErrors.Inc()
 			continue
 		}
@@ -542,7 +542,7 @@ func test() {
 		panic(err)
 	}
 
-	var newEntry bool = false
+	var newEntry = false
 	var json bytes.Buffer
 	json.WriteString("[\n")
 
@@ -553,7 +553,7 @@ func test() {
 	sort.Strings(serviceKeys)
 	for _, k := range serviceKeys {
 		s := root.Services[k]
-		fmt.Printf("Service: %s (Url: %s)\n", k, s.ControlURL)
+		logrus.Infof("Service: %s (Url: %s)\n", k, s.ControlURL)
 
 		actionKeys := []string{}
 		for l := range s.Actions {
@@ -562,14 +562,14 @@ func test() {
 		sort.Strings(actionKeys)
 		for _, l := range actionKeys {
 			a := s.Actions[l]
-			fmt.Printf("  %s - arguments: variable [direction] (soap name, soap type)\n", a.Name)
+			logrus.Debugf("%s - arguments: variable [direction] (soap name, soap type)", a.Name)
 			for _, arg := range a.Arguments {
 				sv := arg.StateVariable
-				fmt.Printf("    %s [%s] (%s, %s)\n", arg.RelatedStateVariable, arg.Direction, arg.Name, sv.DataType)
+				logrus.Debugf("%s [%s] (%s, %s)", arg.RelatedStateVariable, arg.Direction, arg.Name, sv.DataType)
 			}
 
 			if !a.IsGetOnly() {
-				fmt.Printf("  %s - not calling, since arguments required or no output\n", a.Name)
+				logrus.Debugf("%s - not calling, since arguments required or no output", a.Name)
 				continue
 			}
 
@@ -592,16 +592,16 @@ func test() {
 				json.WriteString("\"\n\t}")
 			}
 
-			fmt.Printf("  %s - calling - results: variable: value\n", a.Name)
+			logrus.Debugf("%s - calling - results: variable: value", a.Name)
 			res, err := a.Call(nil)
 
 			if err != nil {
-				fmt.Printf("    FAILED:%s\n", err.Error())
+				logrus.Warnf("FAILED:%s", err)
 				continue
 			}
 
 			for _, arg := range a.Arguments {
-				fmt.Printf("    %s: %v\n", arg.RelatedStateVariable, res[arg.StateVariable.Name])
+				logrus.Debugf("%s: %v", arg.RelatedStateVariable, res[arg.StateVariable.Name])
 			}
 		}
 	}
@@ -611,7 +611,7 @@ func test() {
 	if *flagJSONOut != "" {
 		err := ioutil.WriteFile(*flagJSONOut, json.Bytes(), 0644)
 		if err != nil {
-			fmt.Printf("Failed writing JSON file '%s': %s\n", *flagJSONOut, err.Error())
+			logrus.Warnf("Failed writing JSON file '%s': %s\n", *flagJSONOut, err.Error())
 		}
 	}
 }
@@ -669,7 +669,7 @@ func main() {
 
 	u, err := url.Parse(*flagGatewayURL)
 	if err != nil {
-		fmt.Println("invalid URL:", err)
+		logrus.Errorf("invalid URL:", err)
 		return
 	}
 
@@ -686,13 +686,13 @@ func main() {
 	// read metrics
 	jsonData, err := ioutil.ReadFile(*flagMetricsFile)
 	if err != nil {
-		fmt.Println("error reading metric file:", err)
+		logrus.Errorf("error reading metric file:", err)
 		return
 	}
 
 	err = json.Unmarshal(jsonData, &metrics)
 	if err != nil {
-		fmt.Println("error parsing JSON:", err)
+		logrus.Errorf("error parsing JSON:", err)
 		return
 	}
 
@@ -822,14 +822,14 @@ func main() {
 			prometheus.MustRegister(luaCollectErrors)
 		}
 
-		fmt.Println("collecting metrics via http")
+		logrus.Infof("collecting metrics via http")
 
 		// simulate HTTP request without starting actual http server
 		writer := testResponseWriter{header: http.Header{}}
 		request := http.Request{}
 		promhttp.Handler().ServeHTTP(&writer, &request)
 
-		fmt.Println(writer.String())
+		logrus.Infof("Response:\n\n%s", writer.String())
 
 		return
 	}
@@ -850,11 +850,11 @@ func main() {
 	healthChecks := createHealthChecks(*flagGatewayURL)
 
 	http.Handle("/metrics", promhttp.Handler())
-	fmt.Printf("metrics available at http://%s/metrics\n", *flagAddr)
+	logrus.Infof("metrics available at http://%s/metrics", *flagAddr)
 	http.HandleFunc("/ready", healthChecks.ReadyEndpoint)
-	fmt.Printf("readyness check available at http://%s/ready\n", *flagAddr)
+	logrus.Infof("readyness check available at http://%s/ready\n", *flagAddr)
 	http.HandleFunc("/live", healthChecks.LiveEndpoint)
-	fmt.Printf("liveness check available at http://%s/live\n", *flagAddr)
+	logrus.Infof("liveness check available at http://%s/live", *flagAddr)
 
-	log.Fatal(http.ListenAndServe(*flagAddr, nil))
+	logrus.Error(http.ListenAndServe(*flagAddr, nil))
 }

@@ -7,5 +7,6 @@ require (
 	github.com/namsral/flag v1.7.4-pre
 	github.com/prometheus/client_golang v1.10.0
 	golang.org/x/text v0.3.6
+	github.com/sirupsen/logrus v1.4.2
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 )
