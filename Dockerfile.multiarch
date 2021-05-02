@@ -1,12 +1,21 @@
-FROM golang:alpine as build
+FROM --platform=$BUILDPLATFORM golang:alpine as build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
 
 COPY . /usr/src/fritzbox_exporter
 WORKDIR /usr/src/fritzbox_exporter
 
 RUN go mod download; \
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-w -extldflags "-static"' -o fritzbox-exporter .
+	case "$TARGETVARIANT" in \
+		v5) export GOARM=5 ;; \
+		v6) export GOARM=6 ;; \
+		v7) export GOARM=7 ;; \
+	esac; \
+	CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -a -ldflags '-w -extldflags "-static"' -o fritzbox-exporter .
 
-FROM alpine:latest
+FROM --platform=$TARGETPLATFORM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=build /usr/src/fritzbox_exporter/fritzbox-exporter /bin/
 COPY --from=build /usr/src/fritzbox_exporter/*.json /etc/fritzbox-exporter/
