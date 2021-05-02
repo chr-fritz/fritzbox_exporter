@@ -1,7 +1,7 @@
 FROM golang:alpine as build
 
-COPY . /usr/src/fritzbox_exporter
 WORKDIR /usr/src/fritzbox_exporter
+COPY . .
 
 RUN go mod download; \
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-w -extldflags "-static"' -o fritzbox-exporter .

@@ -4,8 +4,8 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
 
-COPY . /usr/src/fritzbox_exporter
 WORKDIR /usr/src/fritzbox_exporter
+COPY . .
 
 RUN go mod download; \
 	case "$TARGETVARIANT" in \
